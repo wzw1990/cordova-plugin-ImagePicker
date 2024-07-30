@@ -1,6 +1,6 @@
 {
-  "name": "cordova-plugin-imagepicker",
-  "version": "1.2.2",
+  "name": "@wzw1990/cordova-plugin-imagepicker",
+  "version": "1.2.7",
   "description": "Cordova ImagePicker Plugin",
   "cordova": {
     "id": "cordova-plugin-imagepicker",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/giantss/cordova-plugin-ImagePicker"
+    "url": "https://github.com/wzw1990/cordova-plugin-ImagePicker"
   },
   "keywords": [
     "cordova",

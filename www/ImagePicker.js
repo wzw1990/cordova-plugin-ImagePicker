@@ -82,5 +82,13 @@ module.exports = {
         };
 
         exec(success, onFail, 'ImagePicker', 'takePhoto', [options]);
+    },
+
+    hasReadPermission: function(onSuccess) {
+        return cordova.exec(onSuccess, null, "ImagePicker", "hasReadPermission", []);
+    },
+    
+    requestReadPermission: function(onSuccess, onFail) {
+        return cordova.exec(onSuccess, onFail, "ImagePicker", "requestReadPermission", []);
     }
 };

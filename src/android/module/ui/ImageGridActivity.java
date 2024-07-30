@@ -8,11 +8,13 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.RecyclerView;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.text.format.Formatter;
 import android.util.Log;
 import android.view.Gravity;
@@ -182,14 +184,17 @@ public class ImageGridActivity extends ImageBaseActivity implements ImageDataSou
 
         onImageSelected(0, null, false);
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN) {
-            if (checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                new ImageDataSource(this, null, this);
-            } else {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION_STORAGE);
-            }
-        } else {
+        if (checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                || checkPermission(Manifest.permission.READ_MEDIA_IMAGES)) {
             new ImageDataSource(this, null, this);
+        } else {
+            String[] permissions;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions = new String[]{Manifest.permission.READ_MEDIA_IMAGES};
+            } else {
+                permissions = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
+            }
+            ActivityCompat.requestPermissions(this, permissions, REQUEST_PERMISSION_STORAGE);
         }
 
     }

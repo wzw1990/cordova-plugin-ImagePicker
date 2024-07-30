@@ -1,9 +1,13 @@
 package com.giants.imagepicker;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -19,15 +23,18 @@ import com.nanchen.compresshelper.CompressHelper;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.io.File;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import androidx.core.content.ContextCompat;
 import top.zibin.luban.Luban;
 
 /**
@@ -36,6 +43,9 @@ import top.zibin.luban.Luban;
 public class ImagePickerMain extends CordovaPlugin {
 
     private static final String TAG = "MultiImagesPicker";
+    private static final String ACTION_HAS_READ_PERMISSION = "hasReadPermission";
+    private static final String ACTION_REQUEST_READ_PERMISSION = "requestReadPermission";
+    private static final int PERMISSION_REQUEST_CODE = 100;
 
     private int image_limit_width = 0;
     private int image_limit_height = 0;
@@ -66,9 +76,9 @@ public class ImagePickerMain extends CordovaPlugin {
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
         this.callbackContext = callbackContext;
-        JSONObject params = args.getJSONObject(0);
 
         if (action.equals("getPictures")) {
+            JSONObject params = args.getJSONObject(0);
             imagePicker.setSelectLimit(params.getInt("maximumImagesCount"));
             imagePicker.setEnablePickOriginal(params.getBoolean("enablePickOriginal"));
             image_limit_width = params.getInt("width");
@@ -77,12 +87,12 @@ public class ImagePickerMain extends CordovaPlugin {
 
             Intent intent = new Intent(cordova.getActivity().getApplicationContext(), ImageGridActivity.class);
             intent.putExtra(ImageGridActivity.EXTRAS_IMAGES, images);
-            cordova.startActivityForResult((CordovaPlugin)this,intent, 100);
+            cordova.startActivityForResult((CordovaPlugin) this, intent, 100);
 
 
             return true;
-        }
-        else if (action.equals("takePhoto")) {
+        } else if (action.equals("takePhoto")) {
+            JSONObject params = args.getJSONObject(0);
             imagePicker.setEnablePickOriginal(params.getBoolean("enablePickOriginal"));
             image_limit_width = params.getInt("width");
             image_limit_height = params.getInt("height");
@@ -90,9 +100,15 @@ public class ImagePickerMain extends CordovaPlugin {
 
             Intent intent = new Intent(cordova.getActivity().getApplicationContext(), ImageGridActivity.class);
             intent.putExtra(ImageGridActivity.EXTRAS_TAKE_PICKERS, true);
-            cordova.startActivityForResult((CordovaPlugin)this,intent, 100);
+            cordova.startActivityForResult((CordovaPlugin) this, intent, 100);
 
 
+            return true;
+        } else if (ACTION_REQUEST_READ_PERMISSION.equals(action)) {
+            requestReadPermission();
+            return true;
+        } else if (ACTION_HAS_READ_PERMISSION.equals(action)) {
+            callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, hasReadPermission()));
             return true;
         }
 
@@ -100,25 +116,24 @@ public class ImagePickerMain extends CordovaPlugin {
     }
 
     public static String readableFileSize(long size) {
-        if(size <= 0) return "0";
-        final String[] units = new String[] { "B", "kB", "MB", "GB", "TB" };
-        int digitGroups = (int) (Math.log10(size)/Math.log10(1024));
-        return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + units[digitGroups];
+        if (size <= 0) return "0";
+        final String[] units = new String[]{"B", "kB", "MB", "GB", "TB"};
+        int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
+        return new DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 100) {
-            if(data == null) {
+            if (data == null) {
                 Context appContext = this.cordova.getActivity().getApplicationContext();
                 Resources resource = appContext.getResources();
                 String pkgName = appContext.getPackageName();
                 int res_ip_canceled = resource.getIdentifier("ip_canceled", "string", pkgName);
                 String canceled = resource.getString(res_ip_canceled);
                 this.callbackContext.error(canceled);
-            }
-            else if (data != null && resultCode == ImagePicker.RESULT_CODE_ITEMS) {
+            } else if (data != null && resultCode == ImagePicker.RESULT_CODE_ITEMS) {
 
                 Context context = cordova.getActivity().getApplicationContext();
 
@@ -126,7 +141,7 @@ public class ImagePickerMain extends CordovaPlugin {
                 boolean isOrigin = data.getBooleanExtra(ImagePicker.EXTRAS_ISORIGIN, false); // 原图
 
                 File targetDir = new File(context.getCacheDir(), "ImagePicker");
-                if(!targetDir.exists()) {
+                if (!targetDir.exists()) {
                     targetDir.mkdirs();
                 }
                 String targetDirPath = targetDir.getAbsolutePath();
@@ -136,35 +151,34 @@ public class ImagePickerMain extends CordovaPlugin {
                 for (Iterator it = images.iterator(); it.hasNext(); ) {
                     ImageItem imageItem = (ImageItem) it.next();
 
-                    if(TextUtils.isEmpty(imageItem.path)) continue;;
+                    if (TextUtils.isEmpty(imageItem.path)) continue;
+                    ;
 
                     String newPath = "";
                     int newWidth = -1;
                     int newHeight = -1;
                     long newSize = -1;
 
-                    if(isOrigin) {
+                    if (isOrigin) {
                         newPath = imageItem.path;
                         newWidth = imageItem.width;
                         newHeight = imageItem.height;
                         newSize = imageItem.size;
-                    }
-                    else {
+                    } else {
                         // do not compress gif
-                        if(imageItem.path.toLowerCase().endsWith(".gif")) {
+                        if (imageItem.path.toLowerCase().endsWith(".gif")) {
                             newPath = imageItem.path;
                             newWidth = imageItem.width;
                             newHeight = imageItem.height;
                             newSize = imageItem.size;
-                        }
-                        else { // 压缩
+                        } else { // 压缩
                             File oldFile = new File(imageItem.path);
 
                             Log.v(TAG, "Image size before compression =====> " + readableFileSize(oldFile.length()));
 
                             File newFile = null;
 
-                            if(image_limit_width > 0 && image_limit_height > 0 && image_limit_quality > 0) {
+                            if (image_limit_width > 0 && image_limit_height > 0 && image_limit_quality > 0) {
                                 newFile = new CompressHelper.Builder(context)
                                         .setMaxWidth(image_limit_width)  // 默认最大宽度
                                         .setMaxHeight(image_limit_height) // 默认最大高度
@@ -172,26 +186,23 @@ public class ImagePickerMain extends CordovaPlugin {
                                         .setDestinationDirectoryPath(targetDirPath)
                                         .build()
                                         .compressToFile(oldFile);
-                            }
-                            else { // auto compress like wechat
+                            } else { // auto compress like wechat
                                 try {
                                     List<File> files = Luban.with(context)
                                             .load(oldFile)
                                             .setTargetDir(targetDirPath)
                                             .get();
-                                    if(files.size() > 0) {
+                                    if (files.size() > 0) {
                                         newFile = files.get(0);
-                                    }
-                                    else {
+                                    } else {
                                         throw new Exception("Unknown exception when compressing " + oldFile.getAbsolutePath());
                                     }
-                                }
-                                catch(Exception e) {
+                                } catch (Exception e) {
                                     e.printStackTrace();
                                 }
                             }
 
-                            if(newFile != null) {
+                            if (newFile != null) {
                                 newPath = newFile.getAbsolutePath();
                                 newSize = newFile.length();
 
@@ -206,7 +217,7 @@ public class ImagePickerMain extends CordovaPlugin {
                         }
                     }
 
-                    if(!TextUtils.isEmpty(newPath)) {
+                    if (!TextUtils.isEmpty(newPath)) {
                         try {
                             JSONObject obj = new JSONObject();
                             obj.put("path", newPath);
@@ -239,5 +250,25 @@ public class ImagePickerMain extends CordovaPlugin {
 
             }
         }
+    }
+
+    @SuppressLint("InlinedApi")
+    private boolean hasReadPermission() {
+        return Build.VERSION.SDK_INT < 23 ||
+                PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this.cordova.getActivity(), Manifest.permission.READ_EXTERNAL_STORAGE) ||
+                PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this.cordova.getActivity(), Manifest.permission.READ_MEDIA_IMAGES);
+    }
+
+    @SuppressLint("InlinedApi")
+    private void requestReadPermission() {
+        if (!hasReadPermission()) {
+            if (Build.VERSION.SDK_INT < 33) {
+                cordova.requestPermissions(this, PERMISSION_REQUEST_CODE, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE});
+            } else {
+                cordova.requestPermissions(this, PERMISSION_REQUEST_CODE, new String[]{Manifest.permission.READ_MEDIA_IMAGES});
+            }
+            return;
+        }
+        callbackContext.success(1);
     }
 }
